@@ -40,6 +40,7 @@ class RozinMirrorApp : public App {
     void initThread();
     void updateCapture();
     void renderCapture();
+    void calculateDifferences();
     
     // Camera System
      POV                            mPov;
@@ -64,10 +65,15 @@ class RozinMirrorApp : public App {
     // Capture
     CaptureRef            mCapture;
     gl::TextureRef        mTexture, mTiledTexture, mReferenceTexture, mTiledReferenceTexture;
-    ci::Surface8uRef      mCamSurface, mTiledSurface;
+    ci::Surface8uRef      mCamSurface, mTiledSurface, mTiledReferenceSurface;
+    
+    bool                  mReferenceIsSet;
     
     int referenceTileValues [ CAM_RESOLUTION_X/TILE_SIZE ][ CAM_RESOLUTION_Y/TILE_SIZE ];
     int currentTileValues [ CAM_RESOLUTION_X/TILE_SIZE ][ CAM_RESOLUTION_Y/TILE_SIZE ];
+    
+    std::vector<float>      mDifferenceValues; // a container for storing the values of the difference between the reference frame and the current frame
+    
 };
 
 void RozinMirrorApp::setup()
@@ -89,8 +95,12 @@ void RozinMirrorApp::setup()
         CI_LOG_EXCEPTION( "Failed to init capture ", exc );
     }
     
+    mReferenceIsSet = false;
+    
     mReferenceTexture = ci::gl::Texture::create(CAM_RESOLUTION_X, CAM_RESOLUTION_Y);
     mTiledReferenceTexture = ci::gl::Texture::create(CAM_RESOLUTION_X, CAM_RESOLUTION_Y);
+    
+    mTiledReferenceSurface = ci::Surface8u::create(CAM_RESOLUTION_X, CAM_RESOLUTION_Y, false);
     
     // init the thread
     initThread();
@@ -103,6 +113,9 @@ void RozinMirrorApp::setup()
         }
     }
     
+    mDifferenceValues.resize(mRozinMirror->getNumX() * mRozinMirror->getNumY() );
+    for (auto i : mDifferenceValues) i = 0.0f;
+    
     // General
     gl::enableDepthWrite();
     gl::enableDepthRead();
@@ -114,7 +127,12 @@ void RozinMirrorApp::mouseDown( MouseEvent event )
     cout << "Updating reference Images" << std::endl;
     
     if (mCamSurface) mReferenceTexture->update( *mCamSurface );
-    if (mTiledSurface) mTiledReferenceTexture->update( *mTiledSurface );
+    if (mTiledSurface) {
+        mTiledReferenceTexture->update( *mTiledSurface );
+        mTiledReferenceSurface = mTiledSurface;
+        
+        mReferenceIsSet = true;
+    }
 }
 
 void RozinMirrorApp::mouseWheel( MouseEvent event )
@@ -128,10 +146,17 @@ void RozinMirrorApp::update()
     mPov.update();
     
     // update the rozin mirror
-    mRozinMirror->update();
+//    mRozinMirror->update();
+    mRozinMirror->update(mDifferenceValues);
     
     // update the capture
     updateCapture();
+    
+    if (mReferenceIsSet)
+    {
+        calculateDifferences();
+        cout << "test" << std::endl;
+    }
     
     if (mShowFps) mFps = toString(int(getAverageFps()));
 }
@@ -331,6 +356,33 @@ void RozinMirrorApp::renderCapture()
         gl::draw( mTiledReferenceTexture, ci::Rectf(mTexture->getWidth(), mTexture->getHeight(), mTexture->getWidth() + mTiledReferenceTexture->getWidth(), mTexture->getHeight() + mTiledReferenceTexture->getHeight()));
     }
     
+}
+
+void RozinMirrorApp::calculateDifferences()
+{
+    Surface::ConstIter referenceFrameIter( mTiledReferenceSurface->getIter() );
+    
+    Surface::ConstIter currentFrameIter( mTiledSurface->getIter() );
+    
+    int index = 0;
+    
+    for ( size_t i = 0; i < mTiledSurface->getWidth(); i += TILE_SIZE){
+        for (size_t j = 0; j < mTiledSurface->getHeight(); j += TILE_SIZE){
+            // samle colour from the center of the tiles
+            ColorAf refColour = mTiledReferenceSurface->getPixel( ci::ivec2(i+(TILE_SIZE/2), j+(TILE_SIZE/2)) );
+            ColorAf currentColour = mTiledSurface->getPixel( ci::ivec2(i+(TILE_SIZE/2), j+(TILE_SIZE/2)) );
+            
+            float refAvg = (refColour.r + refColour.g + refColour.b)/3;
+            float currentAvg = (currentColour.r + currentColour.g + currentColour.b)/3;
+            
+            float diff = currentAvg - refAvg;
+            
+            mDifferenceValues[index] = diff;
+            
+            index++;
+            
+        }
+    }
 }
 
 

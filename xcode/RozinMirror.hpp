@@ -18,7 +18,11 @@ public:
     RozinMirror(int cols, int rows, int scale);
     
     void update();
+    void update(const std::vector<float> &mRotations);
     void render();
+    
+    inline int getNumX(){ return mNumX; }
+    inline int getNumY(){ return mNumY; }
     
     
 private:

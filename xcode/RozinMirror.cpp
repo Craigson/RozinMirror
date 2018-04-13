@@ -8,7 +8,7 @@
 #include "RozinMirror.hpp"
 
 RozinMirror::RozinMirror()
-:mNumX(180),mNumY(120),mScale(10)
+:mNumX(64),mNumY(48),mScale(10)
 {
     mScaleX = mNumX*mScale;
     mScaleY = mNumY*mScale;
@@ -127,6 +127,33 @@ void RozinMirror::update()
             newMat *= glm::scale( ci::vec3(5.0f, 1.0f, 5.f) );
             
             *transforms++ = newMat;
+        }
+    }
+    mInstanceDataVbo->unmap();
+}
+
+void RozinMirror::update(const std::vector<float> &mRotations)
+{
+    // update our instance positions; map our instance data VBO, write new positions, unmap
+    ci::mat4 *transforms = (ci::mat4*)mInstanceDataVbo->mapReplace();
+    
+    int index = 0;
+    
+    for( size_t potX = 0; potX < mNumX; ++potX ) {
+        for( size_t potY = 0; potY < mNumY; ++potY ) {
+            
+            float instanceX = potX / (float)mNumX - 0.5f;
+            float instanceY = potY / (float)mNumY - 0.5f;
+            
+            ci::mat4 newMat;
+            float rot = ci::lmap(mRotations[index], -1.f, 1.f, 0.f, 90.f);
+            
+            newMat *= glm::translate( ci::vec3( instanceX * mScaleX, instanceY * mScaleY, 0));
+            newMat *= glm::rotate(  glm::radians(rot) ,ci::vec3(1,0,0) );
+            newMat *= glm::scale( ci::vec3(5.0f, 1.0f, 5.f) );
+            
+            *transforms++ = newMat;
+            index++;
         }
     }
     mInstanceDataVbo->unmap();
