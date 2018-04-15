@@ -17,9 +17,13 @@
 #include "RozinMirror.hpp"
 
 
-#define TILE_SIZE 10
+//#define TILE_SIZE 4
 #define CAM_RESOLUTION_X 640
 #define CAM_RESOLUTION_Y 480
+#define COUNT_X 128
+#define COUNT_Y 96
+
+const int TILE_SIZE = CAM_RESOLUTION_X / COUNT_X;
 
 using namespace ci;
 using namespace ci::app;
@@ -31,6 +35,7 @@ class RozinMirrorApp : public App {
 	void setup() override;
 	void mouseDown( MouseEvent event ) override;
     void mouseWheel( MouseEvent event ) override;
+    void keyDown (KeyEvent event ) override;
     
 	void update() override;
 	void draw() override;
@@ -69,9 +74,6 @@ class RozinMirrorApp : public App {
     
     bool                  mReferenceIsSet;
     
-    int referenceTileValues [ CAM_RESOLUTION_X/TILE_SIZE ][ CAM_RESOLUTION_Y/TILE_SIZE ];
-    int currentTileValues [ CAM_RESOLUTION_X/TILE_SIZE ][ CAM_RESOLUTION_Y/TILE_SIZE ];
-    
     std::vector<float>      mDifferenceValues; // a container for storing the values of the difference between the reference frame and the current frame
     
 };
@@ -81,10 +83,10 @@ void RozinMirrorApp::setup()
     initParams();
     
     // Create the camera controller.
-    mPov = POV( this, ci::vec3( 0.0f, 0.0f, 1500.0f ), ci::vec3( 0.0f, 0.0f, 0.0f ) );
+    mPov = POV( this, ci::vec3( 0.0f, 0.0f, 3000.0f ), ci::vec3( 0.0f, 0.0f, 0.0f ) );
     
     // create hte rozin mirror grid
-    mRozinMirror = RozinMirror::create();
+    mRozinMirror = RozinMirror::create(COUNT_X,COUNT_Y,20);
     
     // init capture
     try {
@@ -105,14 +107,6 @@ void RozinMirrorApp::setup()
     // init the thread
     initThread();
     
-    
-    for (int i = 0; i < CAM_RESOLUTION_X/TILE_SIZE ; i++){
-        for ( int j = 0; j < CAM_RESOLUTION_Y/TILE_SIZE; j++){
-            referenceTileValues[i][j] = 0;
-            currentTileValues[i][j] = 0;
-        }
-    }
-    
     mDifferenceValues.resize(mRozinMirror->getNumX() * mRozinMirror->getNumY() );
     for (auto i : mDifferenceValues) i = 0.0f;
     
@@ -127,17 +121,35 @@ void RozinMirrorApp::mouseDown( MouseEvent event )
     cout << "Updating reference Images" << std::endl;
     
     if (mCamSurface) mReferenceTexture->update( *mCamSurface );
-    if (mTiledSurface) {
-        mTiledReferenceTexture->update( *mTiledSurface );
-        mTiledReferenceSurface = mTiledSurface;
-        
-        mReferenceIsSet = true;
-    }
+//    if (mTiledSurface) {
+//        mTiledReferenceTexture->update( *mTiledSurface );
+//        mTiledReferenceSurface = mTiledSurface;
+//        mReferenceIsSet = true;
+//    }
+    
+    
 }
 
 void RozinMirrorApp::mouseWheel( MouseEvent event )
 {
      mPov.adjustDist( event.getWheelIncrement() * -5.0f );
+}
+
+void RozinMirrorApp::keyDown( KeyEvent event)
+{
+    switch (event.getChar()){
+        case 'i':
+            mPov.adjustDist(-1500);
+            break;
+            
+        case 'o':
+            mPov.adjustDist(1500);
+            break;
+            
+        default:
+            
+            break;
+    }
 }
 
 void RozinMirrorApp::update()
@@ -152,10 +164,10 @@ void RozinMirrorApp::update()
     // update the capture
     updateCapture();
     
-    if (mReferenceIsSet)
-    {
+    if (mTiledSurface) {
+        mTiledReferenceTexture->update( *mTiledSurface );
+        mTiledReferenceSurface = mTiledSurface;
         calculateDifferences();
-        cout << "test" << std::endl;
     }
     
     if (mShowFps) mFps = toString(int(getAverageFps()));
@@ -189,7 +201,7 @@ RozinMirrorApp::~RozinMirrorApp()
 void RozinMirrorApp::initParams()
 {
     // Params
-    mParams = params::InterfaceGl::create( getWindow(), "App parameters", toPixels( ivec2( 200, 400 ) ) );
+    mParams = params::InterfaceGl::create( getWindow(), "App parameters", toPixels( ivec2( 180, 80 ) ) );
     mShowFps = true;
     mParams->addParam("Show FPS", &mShowFps);
     mParams->addParam( "Fps", &mFps );
@@ -238,19 +250,20 @@ void RozinMirrorApp::captureImagesThreadFn(gl::ContextRef context)
             
             auto capturedSurface = mCapture->getSurface();
             
-            int w = (*mCapture->getSurface()).getWidth();
-            int h = (*mCapture->getSurface()).getHeight();
+//            int w = (*mCapture->getSurface()).getWidth();
+//            int h = (*mCapture->getSurface()).getHeight();
             
-            for (size_t i = 0; i < w; i += TILE_SIZE) {
-                for (size_t j = 0; j < h; j+=TILE_SIZE) {
+            // sum the values of an area (determined by TILE_SIZE) and created  a "pixelated" version of the input image by taking the average for each tile
+            for (size_t i = 0; i < COUNT_X; i++ ) {
+                for (size_t j = 0; j < COUNT_Y; j++ ) {
                     
                     float r = 0;
                     float g = 0;
                     float b = 0;
                     
-                    Surface::Iter outputIter = outputSurf->getIter( ci::Area(i,j,i+TILE_SIZE,j+TILE_SIZE));
+                    Surface::Iter outputIter = outputSurf->getIter( ci::Area(i*TILE_SIZE,j*TILE_SIZE,i*TILE_SIZE+TILE_SIZE,j*TILE_SIZE+TILE_SIZE));
                     
-                    Surface::ConstIter captureIter( capturedSurface->getIter( ci::Area(i,j,i+TILE_SIZE,j+TILE_SIZE)));
+                    Surface::ConstIter captureIter( capturedSurface->getIter( ci::Area(i*TILE_SIZE,j*TILE_SIZE,i*TILE_SIZE+TILE_SIZE,j*TILE_SIZE+TILE_SIZE)));
                     
                     while(captureIter.line() ) {
                         while(captureIter.pixel() ) {
@@ -369,13 +382,14 @@ void RozinMirrorApp::calculateDifferences()
     for ( size_t i = 0; i < mTiledSurface->getWidth(); i += TILE_SIZE){
         for (size_t j = 0; j < mTiledSurface->getHeight(); j += TILE_SIZE){
             // samle colour from the center of the tiles
-            ColorAf refColour = mTiledReferenceSurface->getPixel( ci::ivec2(i+(TILE_SIZE/2), j+(TILE_SIZE/2)) );
+//            ColorAf refColour = mTiledReferenceSurface->getPixel( ci::ivec2(i+(TILE_SIZE/2), j+(TILE_SIZE/2)) );
             ColorAf currentColour = mTiledSurface->getPixel( ci::ivec2(i+(TILE_SIZE/2), j+(TILE_SIZE/2)) );
             
-            float refAvg = (refColour.r + refColour.g + refColour.b)/3;
+//            float refAvg = (refColour.r + refColour.g + refColour.b)/3;
             float currentAvg = (currentColour.r + currentColour.g + currentColour.b)/3;
             
-            float diff = currentAvg - refAvg;
+//            float diff = currentAvg - refAvg;
+            float diff = 1.0 - currentAvg;
             
             mDifferenceValues[index] = diff;
             
@@ -387,5 +401,6 @@ void RozinMirrorApp::calculateDifferences()
 
 
 CINDER_APP( RozinMirrorApp, RendererGl, [&](App::Settings *settings){
-    settings->setWindowSize(1280, 960);
+    settings->setWindowSize(1920, 1080);
+    settings->setHighDensityDisplayEnabled();
 });

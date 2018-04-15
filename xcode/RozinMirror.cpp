@@ -8,7 +8,7 @@
 #include "RozinMirror.hpp"
 
 RozinMirror::RozinMirror()
-:mNumX(64),mNumY(48),mScale(10)
+:mNumX(64),mNumY(48),mScale(20)
 {
     mScaleX = mNumX*mScale;
     mScaleY = mNumY*mScale;
@@ -46,15 +46,15 @@ RozinMirror::RozinMirror()
     mInstanceBatch = ci::gl::Batch::create( mesh, mGlsl, { { ci::geom::Attrib::CUSTOM_0, "vInstanceMatrix" } } );
     
     
-    mTexture = ci::gl::Texture::create( loadImage( ci::app::loadAsset( "texture.jpg" ) ), ci::gl::Texture::Format().mipmap() );
-    mTexture->bind();
+
     
     // Shader for the 3D instanced object
     mGlsl = ci::gl::GlslProg::create( ci::app::loadAsset( "shader.vert" ), ci::app::loadAsset( "shader.frag" ) );
     
-    // load the texture
-    mTexture = ci::gl::Texture::create( loadImage( ci::app::loadAsset( "texture.jpg" ) ), ci::gl::Texture::Format().mipmap() );
+    mTexture = ci::gl::Texture::create( loadImage( ci::app::loadAsset( "emoji.jpg" ) ), ci::gl::Texture::Format().mipmap() );
     mTexture->bind();
+    
+    // load the texture
     
 
 }
@@ -63,13 +63,13 @@ RozinMirror::RozinMirror()
 RozinMirror::RozinMirror(int cols, int rows, int scale)
 :mNumX(cols),mNumY(rows),mScale(scale)
 {
-    mScaleX = mNumX/mScale;
-    mScaleY = mNumY/mScale;
+    mScaleX = mNumX*mScale;
+    mScaleY = mNumY*mScale;
     
     // Shader for the 3D instanced object
     mGlsl = ci::gl::GlslProg::create( ci::app::loadAsset( "shader.vert" ), ci::app::loadAsset( "shader.frag" ) );
     
-    ci::gl::VboMeshRef mesh = ci::gl::VboMesh::create( ci::geom::Cylinder() );
+    ci::gl::VboMeshRef mesh = ci::gl::VboMesh::create( ci::geom::Cube() );
     
     // create an array of initial per-instance positions laid out in a 2D grid
     std::vector<ci::mat4> transforms;
@@ -99,7 +99,9 @@ RozinMirror::RozinMirror(int cols, int rows, int scale)
     mInstanceBatch = ci::gl::Batch::create( mesh, mGlsl, { { ci::geom::Attrib::CUSTOM_0, "vInstanceMatrix" } } );
     
     // load the texture
-    mTexture = ci::gl::Texture::create( loadImage( ci::app::loadAsset( "texture.jpg" ) ), ci::gl::Texture::Format().mipmap() );
+    auto fmt = ci::gl::Texture::Format().mipmap().wrap(GL_CLAMP_TO_EDGE);
+    
+    mTexture = ci::gl::Texture::create( loadImage( ci::app::loadAsset( "emoji.png" ) ), fmt );
     mTexture->bind();
     
   
@@ -137,7 +139,7 @@ void RozinMirror::update(const std::vector<float> &mRotations)
     // update our instance positions; map our instance data VBO, write new positions, unmap
     ci::mat4 *transforms = (ci::mat4*)mInstanceDataVbo->mapReplace();
     
-    int index = 0;
+    int index = mRotations.size() - 1;
     
     for( size_t potX = 0; potX < mNumX; ++potX ) {
         for( size_t potY = 0; potY < mNumY; ++potY ) {
@@ -146,14 +148,15 @@ void RozinMirror::update(const std::vector<float> &mRotations)
             float instanceY = potY / (float)mNumY - 0.5f;
             
             ci::mat4 newMat;
-            float rot = ci::lmap(mRotations[index], -1.f, 1.f, 0.f, 90.f);
+            float rot = ci::lmap(mRotations[index], 1.0f, 0.0f, 180.f, 90.0f);
+//            float rot = 90;
             
             newMat *= glm::translate( ci::vec3( instanceX * mScaleX, instanceY * mScaleY, 0));
             newMat *= glm::rotate(  glm::radians(rot) ,ci::vec3(1,0,0) );
-            newMat *= glm::scale( ci::vec3(5.0f, 1.0f, 5.f) );
+            newMat *= glm::scale( ci::vec3(19.0f, 0.5f, 19.f) );
             
             *transforms++ = newMat;
-            index++;
+            index--;
         }
     }
     mInstanceDataVbo->unmap();

@@ -19,6 +19,7 @@
 		02B0A1AC8A8342149A6491C1 /* RozinMirrorApp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9E412B156F7C4561838CA360 /* RozinMirrorApp.cpp */; };
 		3460EEE4690A462D9EF21100 /* CinderApp.icns in Resources */ = {isa = PBXBuildFile; fileRef = 1C3B042167B9414483EDA513 /* CinderApp.icns */; };
 		5323E6B20EAFCA74003A9687 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5323E6B10EAFCA74003A9687 /* CoreVideo.framework */; };
+		875F5BE32083B0A900667D35 /* ThreadPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 875F5BE22083B0A900667D35 /* ThreadPool.cpp */; };
 		87AE45572080F31100E979D8 /* POV.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87AE45562080F31100E979D8 /* POV.cpp */; };
 		87AE45592080F38100E979D8 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 87AE45582080F38100E979D8 /* assets */; };
 		87AE455C2080FEDF00E979D8 /* RozinMirror.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 87AE455A2080FEDF00E979D8 /* RozinMirror.cpp */; };
@@ -42,6 +43,8 @@
 		5323E6B10EAFCA74003A9687 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = /System/Library/Frameworks/CoreVideo.framework; sourceTree = "<absolute>"; };
 		6CF11E55BFFF425DA2F57C3C /* Resources.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Resources.h; path = ../include/Resources.h; sourceTree = "<group>"; };
 		7951FCF98DF441B0B15A901F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		875F5BE12083B0A900667D35 /* ThreadPool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ThreadPool.h; sourceTree = "<group>"; };
+		875F5BE22083B0A900667D35 /* ThreadPool.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ThreadPool.cpp; sourceTree = "<group>"; };
 		87AE45552080F31100E979D8 /* POV.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = POV.hpp; sourceTree = "<group>"; };
 		87AE45562080F31100E979D8 /* POV.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = POV.cpp; sourceTree = "<group>"; };
 		87AE45582080F38100E979D8 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = "<group>"; };
@@ -84,6 +87,8 @@
 		080E96DDFE201D6D7F000001 /* Source */ = {
 			isa = PBXGroup;
 			children = (
+				875F5BE22083B0A900667D35 /* ThreadPool.cpp */,
+				875F5BE12083B0A900667D35 /* ThreadPool.h */,
 				9E412B156F7C4561838CA360 /* RozinMirrorApp.cpp */,
 				87AE455A2080FEDF00E979D8 /* RozinMirror.cpp */,
 				87AE455B2080FEDF00E979D8 /* RozinMirror.hpp */,
@@ -234,6 +239,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				02B0A1AC8A8342149A6491C1 /* RozinMirrorApp.cpp in Sources */,
+				875F5BE32083B0A900667D35 /* ThreadPool.cpp in Sources */,
 				87AE45572080F31100E979D8 /* POV.cpp in Sources */,
 				87AE455C2080FEDF00E979D8 /* RozinMirror.cpp in Sources */,
 			);

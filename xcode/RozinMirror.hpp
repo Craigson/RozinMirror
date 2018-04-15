@@ -13,6 +13,7 @@ class RozinMirror {
     
 public:
     static RozinMirrorRef create(){ return RozinMirrorRef(new RozinMirror());}
+    static RozinMirrorRef create(int _x, int _y, int _c){ return RozinMirrorRef(new RozinMirror(_x, _y, _c));}
     
     RozinMirror();
     RozinMirror(int cols, int rows, int scale);
