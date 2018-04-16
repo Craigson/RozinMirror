@@ -12,9 +12,11 @@
 #include "cinder/ObjLoader.h"
 #include "cinder/Utilities.h"
 #include "cinder/params/Params.h"
+#include "cinder/ip/Flip.h"
 
 #include "POV.hpp"
 #include "RozinMirror.hpp"
+#include "Threadpool.h"
 
 
 //#define TILE_SIZE 4
@@ -23,7 +25,8 @@
 #define COUNT_X 128
 #define COUNT_Y 96
 
-const int TILE_SIZE = CAM_RESOLUTION_X / COUNT_X;
+const int        TILE_SIZE = CAM_RESOLUTION_X / COUNT_X;
+const int        NUM_PBOS = 4;
 
 using namespace ci;
 using namespace ci::app;
@@ -55,6 +58,7 @@ class RozinMirrorApp : public App {
     string                         mFps;
     bool                           mShowFps;
     bool                           mShowCapture;
+    bool                           mCaptureScreen;
     
     // RozinMirror Grid
     RozinMirrorRef                  mRozinMirror;
@@ -76,6 +80,21 @@ class RozinMirrorApp : public App {
     
     std::vector<float>      mDifferenceValues; // a container for storing the values of the difference between the reference frame and the current frame
     
+    
+    // Screen Recording
+    void captureScreen();
+    static void writePNG( const ci::Surface8u & img, const string &capture_id, int frame_number );
+    bool mPaused = false;
+    int     mCurrentFrame;
+    int mPboIndex, mNextPboIndex;
+    int mFrameCount;
+    string mSavePrefix;
+    //! pool of threads for async work
+    ThreadPoolRef               mThreadpool;
+    //! function posts some async work to the threadpool. must be thread safe and return void.
+    template<typename Handler>
+    void post_async( const Handler& fn ){ mThreadpool->post_async( fn ); }
+    ci::gl::PboRef    mPbos[NUM_PBOS];
 };
 
 void RozinMirrorApp::setup()
@@ -109,6 +128,17 @@ void RozinMirrorApp::setup()
     
     mDifferenceValues.resize(mRozinMirror->getNumX() * mRozinMirror->getNumY() );
     for (auto i : mDifferenceValues) i = 0.0f;
+    
+    
+    // Screen Recording
+    mThreadpool = ThreadPool::create(5);
+    
+    mPboIndex = 0;
+    {
+        for(int i = 0; i < NUM_PBOS; i++){
+            mPbos[i] = gl::Pbo::create( GL_PIXEL_PACK_BUFFER, getWindowWidth() * getWindowHeight() * 3, nullptr, GL_STREAM_READ );
+        }
+    }
     
     // General
     gl::enableDepthWrite();
@@ -171,6 +201,8 @@ void RozinMirrorApp::update()
     }
     
     if (mShowFps) mFps = toString(int(getAverageFps()));
+    
+    if (mCaptureScreen) captureScreen();
 }
 
 void RozinMirrorApp::draw()
@@ -194,6 +226,7 @@ RozinMirrorApp::~RozinMirrorApp()
     mThread->join();
     mCaptureFrames->cancel();
     mTiledFrames->cancel();
+    mThreadpool->close();
 }
 
 /********************* PARAMS ************************/
@@ -201,12 +234,15 @@ RozinMirrorApp::~RozinMirrorApp()
 void RozinMirrorApp::initParams()
 {
     // Params
-    mParams = params::InterfaceGl::create( getWindow(), "App parameters", toPixels( ivec2( 180, 80 ) ) );
+    mParams = params::InterfaceGl::create( getWindow(), "App parameters", toPixels( ivec2( 180, 120 ) ) );
     mShowFps = true;
     mParams->addParam("Show FPS", &mShowFps);
     mParams->addParam( "Fps", &mFps );
     
     mParams->addSeparator();
+    
+    mCaptureScreen = false;
+    mParams->addParam("Record Screen", &mCaptureScreen);
     
     mShowCapture = false;
     mParams->addParam("Show Capture", &mShowCapture);
@@ -400,7 +436,53 @@ void RozinMirrorApp::calculateDifferences()
 }
 
 
+
+/********************* SCREEN RECORDING ************************/
+
+void RozinMirrorApp::captureScreen()
+{
+    
+    auto img = Surface8u(getWindowWidth(), getWindowHeight(), false, ci::SurfaceChannelOrder::RGB );
+    
+    mPboIndex = ( mPboIndex + 1 ) % NUM_PBOS;
+    mNextPboIndex = ( mPboIndex + 1 ) % NUM_PBOS;
+    
+    gl::readBuffer(GL_FRONT);
+    
+    {
+        gl::ScopedBuffer pbo( mPbos[mPboIndex] );
+        gl::readPixels(0, 0, getWindowWidth(), getWindowHeight(), GL_RGB, GL_UNSIGNED_BYTE, 0);
+    }
+    
+    {
+        gl::ScopedBuffer pbo( mPbos[mNextPboIndex] );
+        
+        uint8_t * pboData = (uint8_t*) mPbos[mNextPboIndex]->map( GL_READ_ONLY );
+        
+        memcpy( img.getData(),  pboData,  getWindowWidth() * getWindowHeight() * 3 );
+        
+        mPbos[mNextPboIndex]->unmap();
+        
+        ip::flipVertical( &img );
+    }
+    
+    mSavePrefix = "test";
+    auto captureId = mSavePrefix;
+    post_async( std::bind( &RozinMirrorApp::writePNG, std::move(img), captureId, mFrameCount++ ) );
+    //    writePNG( std::move(img), captureId, mFrameCount++ );
+}
+
+void RozinMirrorApp::writePNG( const ci::Surface8u & img, const string &capture_id, int frame_number )
+{
+    // ffmpeg -f image2 -framerate 45 -i %05d.png -s 1600x900 -pix_fmt yuv420p output.mp4
+    char frm[64];
+    sprintf(frm, "%05d", frame_number);
+    //    writeImage( sInitialPath / fs::path("capture-"+std::to_string(capture_id ) ) / ( std::string("im.") + frm + ".png" ), img );
+    writeImage( getDocumentsDirectory() / "Cinder" / "saveImage_" / (toString(frm) + ".png" ), img );
+}
+
+
 CINDER_APP( RozinMirrorApp, RendererGl, [&](App::Settings *settings){
-    settings->setWindowSize(1920, 1080);
-    settings->setHighDensityDisplayEnabled();
+    settings->setWindowSize(1600, 900 );
+//    settings->setHighDensityDisplayEnabled();
 });
