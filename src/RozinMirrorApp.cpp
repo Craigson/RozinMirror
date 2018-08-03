@@ -474,6 +474,7 @@ void RozinMirrorApp::captureScreen()
 
 void RozinMirrorApp::writePNG( const ci::Surface8u & img, const string &capture_id, int frame_number )
 {
+    // install ffmpeg and use the following command to stitch the images into a video:
     // ffmpeg -f image2 -framerate 45 -i %05d.png -s 1600x900 -pix_fmt yuv420p output.mp4
     char frm[64];
     sprintf(frm, "%05d", frame_number);
@@ -482,7 +483,7 @@ void RozinMirrorApp::writePNG( const ci::Surface8u & img, const string &capture_
 }
 
 
-CINDER_APP( RozinMirrorApp, RendererGl, [&](App::Settings *settings){
+CINDER_APP( RozinMirrorApp, RendererGl(), [&](App::Settings *settings){
     settings->setWindowSize(1600, 900 );
 //    settings->setHighDensityDisplayEnabled();
 });
